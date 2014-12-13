@@ -1,3 +1,11 @@
+//--------------------LHEtoROOT-----------------------------------------------
+//Author: Dan Phan (dan@umail.ucsb.edu)
+//Date: December 2014
+//Description/Instructions: Go to line 33, change name of file to your LHE file
+//Change tree name to your root tree name
+//Change name of output file, max nEvents
+//----------------------------------------------------------------------------
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -7,82 +15,75 @@
 #include "TTree.h"
 #include "TFile.h"
 #include "Math/Vector4D.h"
-#include "Math/VectorUtil.h"
-
-typedef ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<float> > LorentzVector;
 
 using namespace std;
 
-int nEventsMax = 5;
+//Parameters
+  outputName = "dansFile";
+  treeName = "Dan's Tree";
+//
+
+typedef ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<float> > LorentzVector;
+
 int nEvents = 0;
 
 int looper(){
 
-  LorentzVector alex;
-  alex.SetE(4);
-  alex.SetPx(5);
-  alex.SetPy(6);
-  alex.SetPz(7);
-
-  cout << alex.eta() << endl;
-
   //Declare TTree and TFile
-  TFile *file = new TFile("dansFile.root", "RECREATE");
-  TTree *tree = new TTree("tree", "Dan's Tree");
+  TFile *file = new TFile(Form("%s.root", outputName), "RECREATE");
+  TTree *tree = new TTree("tree", Form("%s",treeName));
   
   //Declare variables that will be stored in tree
   vector <int> pdgID;
-  vector <int> a;
-  vector <int> b;
-  vector <int> c;
-  vector <int> d;
-  vector <int> e;
-  vector <float> f;
-  vector <float> g;
-  vector <float> h;
-  vector <float> i;
-  vector <float> j;
-  vector <float> k;
-  vector <float> l;
+  vector <int> status;
+  vector <int> mother_1;
+  vector <int> mother_2;
+  vector <int> colour_1;
+  vector <int> colour_2;
+  vector <LorentzVector> four_momentum;  //encodes 4-momentum and position
+  vector <LorentzVector> four_position;
   vector <float> row1; //row underneath <event>
-  vector <float> wgtID;
+  int nParticles;      //entries in row1
+  int process_number;
+  float weight;
+  float energy_scale;
+  float QED_coupling;
+  float QCD_coupling;
+  vector <float> wgtID;  
   
   //Match up variable with branch
   tree->Branch("pdgID", &pdgID); 
-  tree->Branch("a", &a);
-  tree->Branch("b", &b);
-  tree->Branch("c", &c);
-  tree->Branch("d", &d);
-  tree->Branch("e", &e);
-  tree->Branch("f", &f);
-  tree->Branch("g", &g);
-  tree->Branch("h", &h);
-  tree->Branch("i", &i);
-  tree->Branch("j", &j);
-  tree->Branch("k", &k);
-  tree->Branch("l", &l);
-  tree->Branch("row1",&row1); //row beneath <event>
+  tree->Branch("status", &status);
+  tree->Branch("mother_1", &mother_1);
+  tree->Branch("mother_2", &mother_2);
+  tree->Branch("colour_1", &colour_1);
+  tree->Branch("colour_2", &colour_2);
+  tree->Branch("four_momentum", &four_momentum);
+  tree->Branch("four_position", &four_position);
   tree->Branch("wgtID",&wgtID); 
-  
+  tree->Branch("nParticles",&nParticles);
+  tree->Branch("process_number",&process_number);
+  tree->Branch("weight",&weight);
+  tree->Branch("energy_scale",&energy_scale);
+  tree->Branch("QED_coupling",&QED_coupling); 
+  tree->Branch("QCD_coupling",&QCD_coupling); 
+ 
   string line;
-  string subline1 = "<event>";
-  string subline2 = "#";  //end of data to be stored, "iss >> val" messes up when lines have text
-  string subline3 = "wgt id";
-  bool first = false;
-  bool second = false;
+  bool first = false; //whether on line right below event
+  bool second = false; //between <event> and </event>, turns on one line after "first", both turn off after filling tree
   bool is_wgtID = false;
   
-  fstream myfile ("lhe_file_toy.lhe", ios_base::in);  //opening data file
-  while (getline(myfile,line)) {          //looping through lines
-    if (nEvents > nEventsMax){
-      tree->Write(); 
-      return 0;
-    }
-    if (second == true) {   //if second is on, we do stuff to line after(since we call getline again)
-      do {  //keeps looping until we find "stop"
-        if (line.find(subline2) != string::npos) {break;}  //if line contains "stop", stop loop
+  //Opening data file
+  fstream myfile ("lhe_file_toy.lhe", ios_base::in);
+
+  while (getline(myfile,line)){          
+
+    //if on 2nd line below event, fill variables(row1 and wgtID entries filled in other loops)
+    if (second == true) {   
+      do {  
+        if (line.find('#') != string::npos) break;  //if line contains "stop", stop loop
         
-        //Declare temp vector, val
+        //Declare temp vector
         vector <float> row;
 
         //iss has entire string.  Now read first part of string (pdgID) into "val" 
@@ -91,33 +92,35 @@ int looper(){
         float val;
          
         int count = 0;
-	while (iss >> val && (count < 13)) {
-	  row.push_back(val);
-	  count++;
-	}
- 
-        //Now move row to "pdgID" vector 
-        pdgID.push_back(row[0]);  //do we need to worry if this is zero?
-        a.push_back(row[1]);
-        b.push_back(row[2]);
-        c.push_back(row[3]);
-        d.push_back(row[4]);
-        e.push_back(row[5]);
-        f.push_back(row[6]);
-        g.push_back(row[7]);
-        h.push_back(row[8]);
-        i.push_back(row[9]);
-        j.push_back(row[10]);
-        k.push_back(row[11]);
-        l.push_back(row[12]); 
+     	while (iss >> val && (count < 13)) {
+     	  row.push_back(val);
+     	  count++;
+     	}
+
+        //Now split row into vectors for each variable
+        pdgID.push_back(row[0]);  
+        status.push_back(row[1]);
+        mother_1.push_back(row[2]);
+        mother_2.push_back(row[3]);
+        colour_1.push_back(row[4]);
+        colour_2.push_back(row[5]);
+        LorentzVector four_momentum_temp;
+        four_momentum_temp.SetPx(row[6]);
+        four_momentum_temp.SetPy(row[7]);
+        four_momentum_temp.SetPz(row[8]);
+        four_momentum_temp.SetE(row[9]);
+        four_momentum.push_back(four_momentum_temp);
+        LorentzVector four_position_temp;
+        four_position_temp.SetXYZT(row[10],row[11],row[12],0);  //no time information in file, we have set t=0
+        four_position.push_back(four_position_temp);
       } while (getline(myfile,line));
       first = false;
-      second = false;  //after array prints, turn next off again
+      second = false;  //after array prints, turn first, second off again
     }
+ 
+    //Line right below <event>(row1 variables)
     if (first == true) {
-      second = true;
-//      vector <float> row1;  //row1 is row right under <event>
-
+      second = true; //sets up next loop
       istringstream iss;
       iss.str(line);
       float val1;
@@ -127,36 +130,55 @@ int looper(){
         row1.push_back(val1);
         count1++;
       }
+      nParticles = row1[0];
+      process_number = row1[1];
+      weight = row1[2];
+      energy_scale = row1[3];
+      QED_coupling = row1[4];
+      QCD_coupling = row1[5];
+      
     }
     
-    if (line.find(subline3) != string::npos) { //if line contains wgt id, start filling wgtID
+    //Store weights 
+    if (line.find("wgt id") != string::npos) { //if line contains wgt id, start filling wgtID
       is_wgtID = true;
       do {
-        if (!(line.find(subline3) != string::npos)) { //if line doesn't contain wgt id, stop filling and break out of loop
+        if (!(line.find("wgt id") != string::npos)) { //if line doesn't contain wgt id, stop filling and break out of loop
           break;
         }
         int begin = line.find(">");
         int end = line.find("<",begin);
         const char* str_val2 = line.substr(begin+1,end-(begin+1)).c_str(); //takes number out of line
-        float val2 = atof(str_val2); //does stof only work for C++ 11?
+        float val2 = atof(str_val2); 
         wgtID.push_back(val2);
       } while (getline(myfile,line));
-      tree->Fill();  //after done filling, fill tree
-      pdgID.clear();
     }
-    if (line.find(subline1) != string::npos) {  //if line contains  "yes", we turn second on
-      first = true;
+
+    //Check every line after </event> 
+    if ((line.find("<event>") != string::npos)) {  //if line contains  "<event>", we turn first to true(begins filling row1 variables)
+
       nEvents++;
-      cout << nEvents << endl;
+
+      if (is_wgtID == false) { //if event doesn't contain wgtID information, fill wgtID with nonsense
+        for (int i_ = 0; i_ < 50; i_++) {
+          wgtID.push_back(-5);
+        }
+      }
+
+      if (nEvents > 1) tree->Fill();
+      pdgID.clear();
+      status.clear();
+      mother_1.clear();
+      mother_2.clear();
+      colour_1.clear();
+      colour_2.clear();
+      wgtID.clear();
+      row1.clear();
+      four_momentum.clear();
+      four_position.clear();
+
+      first = true; //begins process to move onto next event
     }
-
-//    if (is_wgtID == false) { //if file doesn't include wgt id, fill it with nonsense
-//      for (int i_ = 0; i_ < 50; i_++) {
-//        wgtID.push_back(-5);
-//      }
-//    tree->Fill();
-//  }
-
     
   }
 
