@@ -1,10 +1,11 @@
 //--------------------LHEtoROOT-----------------------------------------------
 //Author: Dan Phan (dan@umail.ucsb.edu)
 //Date: December 2014
-//Description/Instructions: Go to line 33, change name of file to your LHE file
+//Description/Instructions: Go to line 22, change name of file to your LHE file
 //Change tree name to your root tree name
-//Change name of output file, max nEvents
+//Change name of output file
 //----------------------------------------------------------------------------
+#pragma GCC diagnostic ignored "-Wwrite-strings"
 
 #include <iostream>
 #include <fstream>
@@ -19,15 +20,15 @@
 using namespace std;
 
 //Parameters
-  outputName = "dansFile";
-  treeName = "Dan's Tree";
-//
+char* filename  = "lhe_file_toy";
+char* outputName = "LHE_File";
+char* treeName = "LHE_Tree";
+
 
 typedef ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<float> > LorentzVector;
 
-int nEvents = 0;
-
 int looper(){
+
 
   //Declare TTree and TFile
   TFile *file = new TFile(Form("%s.root", outputName), "RECREATE");
@@ -45,11 +46,11 @@ int looper(){
   vector <float> row1; //row underneath <event>
   int nParticles;      //entries in row1
   int process_number;
-  float weight;
+  float reweight;
   float energy_scale;
   float QED_coupling;
   float QCD_coupling;
-  vector <float> wgtID;  
+  vector <float> weight;  
   
   //Match up variable with branch
   tree->Branch("pdgID", &pdgID); 
@@ -60,10 +61,10 @@ int looper(){
   tree->Branch("colour_2", &colour_2);
   tree->Branch("four_momentum", &four_momentum);
   tree->Branch("four_position", &four_position);
-  tree->Branch("wgtID",&wgtID); 
+  tree->Branch("weight",&weight); 
   tree->Branch("nParticles",&nParticles);
   tree->Branch("process_number",&process_number);
-  tree->Branch("weight",&weight);
+  tree->Branch("reweight",&reweight);
   tree->Branch("energy_scale",&energy_scale);
   tree->Branch("QED_coupling",&QED_coupling); 
   tree->Branch("QCD_coupling",&QCD_coupling); 
@@ -71,34 +72,30 @@ int looper(){
   string line;
   bool first = false; //whether on line right below event
   bool second = false; //between <event> and </event>, turns on one line after "first", both turn off after filling tree
-  bool is_wgtID = false;
+  bool is_weight = false;
+
+  //declare temp vector used to fill other variables
+  vector<float> row;
   
   //Opening data file
-  fstream myfile ("lhe_file_toy.lhe", ios_base::in);
+  fstream myfile (Form("%s.lhe",filename), ios_base::in);
 
   while (getline(myfile,line)){          
 
-    //if on 2nd line below event, fill variables(row1 and wgtID entries filled in other loops)
+    //if on 2nd line below event, fill variables(row1 and weight entries filled in other loops)
     if (second == true) {   
       do {  
         if (line.find('#') != string::npos) break;  //if line contains "stop", stop loop
-        
-        //Declare temp vector
-        vector <float> row;
-
+      
         //iss has entire string.  Now read first part of string (pdgID) into "val" 
         istringstream iss;   //opening string stream, above getline loops past first line below "yes"
         iss.str(line);      //copying line into stream
         float val;
          
-        int count = 0;
-     	while (iss >> val && (count < 13)) {
-     	  row.push_back(val);
-     	  count++;
-     	}
+     	while (iss >> val) row.push_back(val);  //fill row with numbers in line
 
         //Now split row into vectors for each variable
-        pdgID.push_back(row[0]);  
+        pdgID.push_back(row[0]); 
         status.push_back(row[1]);
         mother_1.push_back(row[2]);
         mother_2.push_back(row[3]);
@@ -113,6 +110,9 @@ int looper(){
         LorentzVector four_position_temp;
         four_position_temp.SetXYZT(row[10],row[11],row[12],0);  //no time information in file, we have set t=0
         four_position.push_back(four_position_temp);
+
+        row.clear();
+
       } while (getline(myfile,line));
       first = false;
       second = false;  //after array prints, turn first, second off again
@@ -125,14 +125,11 @@ int looper(){
       iss.str(line);
       float val1;
 
-      int count1 = 0;
-      while (iss >> val1 && (count1 < 6)) {
-        row1.push_back(val1);
-        count1++;
-      }
+      while (iss >> val1) row1.push_back(val1);  //fill row1 with numbers in line
+
       nParticles = row1[0];
       process_number = row1[1];
-      weight = row1[2];
+      reweight = row1[2];
       energy_scale = row1[3];
       QED_coupling = row1[4];
       QCD_coupling = row1[5];
@@ -140,8 +137,7 @@ int looper(){
     }
     
     //Store weights 
-    if (line.find("wgt id") != string::npos) { //if line contains wgt id, start filling wgtID
-      is_wgtID = true;
+    if (line.find("wgt id") != string::npos) { //if line contains wgt id, start filling weight
       do {
         if (!(line.find("wgt id") != string::npos)) { //if line doesn't contain wgt id, stop filling and break out of loop
           break;
@@ -149,30 +145,26 @@ int looper(){
         int begin = line.find(">");
         int end = line.find("<",begin);
         const char* str_val2 = line.substr(begin+1,end-(begin+1)).c_str(); //takes number out of line
-        float val2 = atof(str_val2); 
-        wgtID.push_back(val2);
+        float val2 = atof(str_val2); //turns number from string to float 
+        weight.push_back(val2);
       } while (getline(myfile,line));
+      is_weight = true; 
     }
 
     //Check every line after </event> 
     if ((line.find("<event>") != string::npos)) {  //if line contains  "<event>", we turn first to true(begins filling row1 variables)
 
-      nEvents++;
+      //if file doesn't contain weight info, fill weight with nonsense 
+      if (is_weight == false) weight.push_back(-5);
 
-      if (is_wgtID == false) { //if event doesn't contain wgtID information, fill wgtID with nonsense
-        for (int i_ = 0; i_ < 50; i_++) {
-          wgtID.push_back(-5);
-        }
-      }
-
-      if (nEvents > 1) tree->Fill();
+      if (pdgID.size() != 0) tree->Fill();   //if vectors containing data are nonempty, fill tree(pdgID picked arbitrarily)
       pdgID.clear();
       status.clear();
       mother_1.clear();
       mother_2.clear();
       colour_1.clear();
       colour_2.clear();
-      wgtID.clear();
+      weight.clear();
       row1.clear();
       four_momentum.clear();
       four_position.clear();
