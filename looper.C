@@ -45,7 +45,7 @@ int looper(){
 
   //Declare TTree and TFile
   TFile *file = new TFile(Form("%s.root", outputName), "RECREATE");
-  TTree *tree = new TTree("tree_qqww_mm", Form("%s",treeName));
+  TTree *tree = new TTree("tree", Form("%s",treeName));  //tree called "tree"
   
   //Declare variables that will be stored in tree
   vector <int> pdgID;
