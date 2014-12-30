@@ -27,7 +27,7 @@ typedef ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<float> > LorentzVector;
 
 //fill tree for only maxEvents number of events
 int numEvents = 0; //initializing counter of events
-int maxEvents = 10e9;  //if you want to fill all events, make maxEvents huge
+int maxEvents = 1e9; //if you want to fill all events, make maxEvents huge
 
 //function to take store reweights
 float store_reweights(string line) {
@@ -103,6 +103,8 @@ int looper(){
   fstream myfile (Form("%s.lhe",filename), ios_base::in);
 
   while (getline(myfile,line)){  //loops through file and fills line(the variable) with that line of the file
+
+
  
     if (numEvents > maxEvents) break;  //fills tree only for maxEvents number of events
 
@@ -185,6 +187,7 @@ int looper(){
       if (pdgID.size() != 0){
         tree->Fill();   //only fill tree if vectors are nonempty(pdgID picked arbitrarily)
         numEvents++;
+
       }
   
       //clear vectors so we can fill them again for next event
@@ -202,6 +205,8 @@ int looper(){
     }
     
   }
+
+  tree->Fill(); //last event isn't filled, because there's no next "<event>" to trigger it
 
   file->cd();
   tree->Write(); 
