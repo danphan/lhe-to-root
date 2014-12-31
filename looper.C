@@ -79,12 +79,12 @@ int looper(){
   tree->Branch("four_position", &four_position);
   
   //filled separate from first_below_event and second_line_below loops
-  tree->Branch("weight",&weight); 
+  tree->Branch("reweight",&reweight); 
 
   //filled in first_below_event loop
   tree->Branch("nParticles",&nParticles);
   tree->Branch("process_number",&process_number);
-  tree->Branch("reweight",&reweight);
+  tree->Branch("weight",&weight);
   tree->Branch("energy_scale",&energy_scale);
   tree->Branch("QED_coupling",&QED_coupling); 
   tree->Branch("QCD_coupling",&QCD_coupling); 
