@@ -19,7 +19,7 @@
 using namespace std;
 
 //Parameters
-char* filename  = "/home/users/danphan/lhe-to-root/lhe_file_toy";
+char* filename  = "/home/users/danphan/lhe-to-root/lhe_file_toy.lhe";
 char* outputName = "LHE_File";
 char* treeName = "LHE_Tree";
 
@@ -100,7 +100,7 @@ int looper(){
   vector<float> row1; //row used to fill variables in first_line_below part of looper() 
 
   //Opening data file
-  fstream myfile (Form("%s.lhe",filename), ios_base::in);
+  fstream myfile (filename, ios_base::in);
 
   while (getline(myfile,line)){  //loops through file and fills line(the variable) with that line of the file
 
