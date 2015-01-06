@@ -1,7 +1,7 @@
 lhe-to-root
 ===========
 
-Function to take an LHE file, and create a ROOT file that contains a tree filled with the event data. 
+Function to take an LHE file, and create a ROOT file that contains a tree filled with the event data. Its performance is linear in number of events with a rate of 29 events/second.
 
 To run:
 
